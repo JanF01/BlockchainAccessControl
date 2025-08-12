@@ -1,5 +1,6 @@
 package com.example.blockchainaccess
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.content.Intent
 import androidx.activity.ComponentActivity
@@ -32,9 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.example.blockchainaccess.ui.theme.BlockchainAccessTheme
-import com.example.blockchainaccess.ProfileService
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import android.widget.Toast
 
 class CreateProfileActivity : ComponentActivity() {
@@ -54,6 +53,7 @@ class CreateProfileActivity : ComponentActivity() {
     }
 }
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -111,8 +111,8 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
                     onValueChange = { username = it },
                     label = { Text("Username") },
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
+                        .fillMaxWidth(0.88f)
+                        .padding(vertical = 6.dp)
                 )
 
                 TextField(
@@ -121,8 +121,8 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
                     label = { Text("Password") },
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
+                        .fillMaxWidth(0.88f)
+                        .padding(vertical = 6.dp)
                 )
                 TextField(
                     value = repeatPassword,
@@ -130,8 +130,8 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
                     label = { Text("Repeat Password") },
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
+                        .fillMaxWidth(0.88f)
+                        .padding(vertical = 6.dp)
                 )
                 Spacer(modifier = Modifier.height(34.dp))
                 Button(
@@ -165,22 +165,42 @@ fun register(
     repeatPassword: String,
     coroutineScope: CoroutineScope
 ) {
-    val result = ProfileService.createProfile(username, password, repeatPassword)
+    if (username.isBlank() || password.isBlank() || repeatPassword.isBlank()) {
+        Toast.makeText(context, "All fields must be filled.", Toast.LENGTH_SHORT).show()
+        return
+    }
 
-    result.fold(
-        onSuccess = { message ->
-            val id = message.substringAfter("ID: ").trim()
-            Toast.makeText(context, "Success: $message", Toast.LENGTH_SHORT).show()
+    if (password != repeatPassword) {
+        Toast.makeText(context, "Passwords do not match.", Toast.LENGTH_SHORT).show()
+        return
+    }
 
-            coroutineScope.launch {
-                SessionManager.saveSession(context, id, username)
-                // Navigate to UserActivity after session is saved
-                val intent = Intent(context, UserActivity::class.java)
-                context.startActivity(intent)
-            }
-        },
-        onFailure = { error ->
-            Toast.makeText(context, error.message ?: "Unknown error", Toast.LENGTH_SHORT).show()
+    // Launch a coroutine to handle the asynchronous network request
+    coroutineScope.launch(Dispatchers.IO) {
+        // The network request is made here, on a background thread.
+        val result = NetworkClient.createAndRegisterProfile(username, password)
+
+        // Switch back to the main thread to update UI or navigate
+        withContext(Dispatchers.Main) {
+            result.fold(
+                onSuccess = { message ->
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+
+                    // Here's where the network call has already completed successfully.
+                    // Now, we can safely save the session and navigate.
+                    // Note: The message from the network client contains the ID.
+                    val id = message.substringAfter("ID: ")
+
+                    SessionManager.saveSession(context, id, username)
+
+                    val intent = Intent(context, UserActivity::class.java)
+                    context.startActivity(intent)
+                },
+                onFailure = { error ->
+                    // This block runs if the network call failed for any reason.
+                    Toast.makeText(context, error.message ?: "Unknown error", Toast.LENGTH_SHORT).show()
+                }
+            )
         }
-    )
+    }
 }
