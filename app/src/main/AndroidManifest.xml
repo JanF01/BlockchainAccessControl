@@ -27,6 +27,9 @@
         </activity>
         <activity android:name=".CreateProfileActivity" />
         <activity android:name=".UserActivity" />
+        <activity
+            android:name=".WhitelistActivity"
+            android:label="Authority Whitelist" />
         <service
             android:name=".MyHostApduService"
             android:exported="true"

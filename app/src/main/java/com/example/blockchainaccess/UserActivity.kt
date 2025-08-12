@@ -230,9 +230,14 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                                     )
                                 ),
                                 shape = RoundedCornerShape(12.dp)
-                            ),
+                            )
+                            .clickable {
+                                context.startActivity(
+                                    Intent(context, WhitelistActivity::class.java)
+                                )
+                            },
                         contentAlignment = Alignment.Center
-                    ){
+                    ) {
                         Text(
                             text = "Authority List",
                             fontSize = 18.sp,

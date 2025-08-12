@@ -183,21 +183,17 @@ fun register(
         // Switch back to the main thread to update UI or navigate
         withContext(Dispatchers.Main) {
             result.fold(
-                onSuccess = { message ->
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-
-                    // Here's where the network call has already completed successfully.
-                    // Now, we can safely save the session and navigate.
-                    // Note: The message from the network client contains the ID.
-                    val id = message.substringAfter("ID: ")
+                onSuccess = { (id, whitelist) ->
+                    Toast.makeText(context, "Profile created successfully!", Toast.LENGTH_SHORT).show()
 
                     SessionManager.saveSession(context, id, username)
+
+                    SessionManager.saveWhitelist(context, whitelist)
 
                     val intent = Intent(context, UserActivity::class.java)
                     context.startActivity(intent)
                 },
                 onFailure = { error ->
-                    // This block runs if the network call failed for any reason.
                     Toast.makeText(context, error.message ?: "Unknown error", Toast.LENGTH_SHORT).show()
                 }
             )

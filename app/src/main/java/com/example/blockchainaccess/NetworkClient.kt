@@ -1,4 +1,5 @@
-import com.google.firebase.crashlytics.buildtools.reloc.org.apache.http.client.HttpClient
+package com.example.blockchainaccess
+
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.* // Use CIO for a lightweight client
@@ -29,7 +30,8 @@ object NetworkClient {
 
     @Serializable
     private data class CreateProfileResponse(
-        val id: String
+        val id: String,
+        val whitelist: Set<String>
     )
 
     @Serializable
@@ -37,7 +39,48 @@ object NetworkClient {
         val id: String
     )
 
-    suspend fun createAndRegisterProfile(username: String, password: String): Result<String> {
+    @Serializable
+    private data class WhitelistEntryRequest(
+        val userId: String,
+    )
+
+    suspend fun addWhitelistEntry(userId: String): Result<Unit> {
+        return try {
+            val url = "http://10.0.2.2:8081/new_whitelist_entry"
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(WhitelistEntryRequest(userId))
+            }
+
+            if (response.status.isSuccess()) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to add whitelist entry with status: ${response.status}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error while adding whitelist entry: ${e.message}"))
+        }
+    }
+
+    suspend fun removeWhitelistEntry(userId: String): Result<Unit> {
+        return try {
+            val url = "http://10.0.2.2:8081/remove_whitelist_entry"
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(WhitelistEntryRequest(userId))
+            }
+
+            if (response.status.isSuccess()) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to remove whitelist entry with status: ${response.status}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error while removing whitelist entry: ${e.message}"))
+        }
+    }
+
+    suspend fun createAndRegisterProfile(username: String, password: String): Result<Pair<String, Set<String>>> {
         try {
             val createProfileUrl = "http://10.0.2.2:8081/login"
             val response: HttpResponse = client.post(createProfileUrl) {
@@ -55,8 +98,10 @@ object NetworkClient {
                 return Result.failure(Exception("Server returned an error"))
             }
 
-            val generatedId = creationResponse.id;
-//            println("Profile created. ID: $generatedId")
+            val generatedId = creationResponse.id
+            val whitelist = creationResponse.whitelist
+
+            println("Profile created. ID: $generatedId")
             // --- Step 2: Register user ID with 127.0.0.1:8081 ---
             val registerUrl = "http://10.0.2.2:8081/app_save_id"
             val registerResponse: HttpResponse = client.post(registerUrl) {
@@ -69,7 +114,7 @@ object NetworkClient {
             }
 
             println("User ID $generatedId registered successfully.")
-            return Result.success("Profile created and registered with ID: $generatedId")
+            return Result.success(Pair(generatedId, whitelist))
 
         } catch (e: Exception) {
             // Handle network or serialization errors
