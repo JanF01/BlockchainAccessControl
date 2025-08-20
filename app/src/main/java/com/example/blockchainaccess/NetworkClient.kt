@@ -44,9 +44,9 @@ object NetworkClient {
         val userId: String,
     )
 
-    suspend fun addWhitelistEntry(userId: String): Result<Unit> {
+    suspend fun addWhitelistEntry(userId: String, port: String): Result<Unit> {
         return try {
-            val url = "http://192.168.0.198:8081/new_whitelist_entry"
+            val url = "http://192.168.0.198:$port/new_whitelist_entry"
             val response = client.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(WhitelistEntryRequest(userId))
@@ -62,9 +62,9 @@ object NetworkClient {
         }
     }
 
-    suspend fun removeWhitelistEntry(userId: String): Result<Unit> {
+    suspend fun removeWhitelistEntry(userId: String, port: String): Result<Unit> {
         return try {
-            val url = "http://192.168.0.198:8081/remove_whitelist_entry"
+            val url = "http://192.168.0.198:$port/remove_whitelist_entry"
             val response = client.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(WhitelistEntryRequest(userId))
@@ -80,9 +80,9 @@ object NetworkClient {
         }
     }
 
-    suspend fun createAndRegisterProfile(username: String, password: String): Result<Pair<String, Set<String>>> {
+    suspend fun createAndRegisterProfile(username: String, password: String, port: String): Result<Pair<String, Set<String>>> {
         try {
-            val createProfileUrl = "http://192.168.0.198:8081/login"
+            val createProfileUrl = "http://10.0.2.2:$port/login"
             val response: HttpResponse = client.post(createProfileUrl) {
                 contentType(ContentType.Application.Json)
                 setBody(CreateProfileRequest(username, password))
@@ -100,10 +100,9 @@ object NetworkClient {
 
             val generatedId = creationResponse.id
             val whitelist = creationResponse.whitelist
-
             println("Profile created. ID: $generatedId")
             // --- Step 2: Register user ID with 127.0.0.1:8081 ---
-            val registerUrl = "http://192.168.0.198:8081/app_save_id"
+            val registerUrl = "http://10.0.2.2:$port/app_save_id"
             val registerResponse: HttpResponse = client.post(registerUrl) {
                 contentType(ContentType.Application.Json)
                 setBody(UpdateUserRequest(generatedId))

@@ -1,5 +1,6 @@
 package com.example.blockchainaccess
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.content.Intent
 import androidx.activity.ComponentActivity
@@ -39,11 +40,6 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.foundation.clickable
 
 
-
-object NfcDataHolder {
-    var userId: String = "unknown-user"
-}
-
 class UserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,9 +67,11 @@ class UserActivity : ComponentActivity() {
     }
 }
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun UserScreen(name: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var userId by remember { mutableStateOf("Loading...") }
     var username by remember { mutableStateOf("Loading...") }
     var clicked by remember { mutableStateOf(false) }
@@ -171,13 +169,14 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                         .height(160.dp)
                         .clip(RoundedCornerShape(12.dp)) // clip the shape so background doesn't overflow
                         .background(gradient)
-                        .clickable { clicked = !clicked
-                                     saveUserIdForNfc(context, userId)
-                                    val intent = Intent(context, MyHostApduService::class.java).apply {
-                                        putExtra("NFC_USER_ID", userId)
-                                    }
-                                    context.startService(intent)
-                                   },
+                        .clickable {
+                            clicked = !clicked
+                            saveUserIdForNfc(context, userId)
+                            val intent = Intent(context, MyHostApduService::class.java).apply {
+                                putExtra("NFC_USER_ID", userId)
+                            }
+                            context.startService(intent)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
@@ -211,7 +210,7 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                                 shape = RoundedCornerShape(12.dp)
                             ),
                         contentAlignment = Alignment.Center
-                    ){
+                    ) {
                         Text(
                             text = "Logs",
                             fontSize = 18.sp,
@@ -247,8 +246,22 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                 }
             }
         }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp)
+        ) {
+            Button(onClick = { coroutineScope.launch {
+                SessionManager.clearSession(context)
+                val intent = Intent(context, CreateProfileActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                context.startActivity(intent)
+            }  }) {
+                Text(text = "Logout")
+            }
+        }
     }
-
 }
 
 fun saveUserIdForNfc(context: Context, userId: String) {

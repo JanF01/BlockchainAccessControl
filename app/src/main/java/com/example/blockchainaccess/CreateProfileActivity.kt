@@ -16,6 +16,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -61,6 +63,8 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var repeatPassword by remember { mutableStateOf("") }
+    var selectedPort by remember { mutableStateOf("8081") }
+    var showPortDropdown by remember { mutableStateOf(false) }
     Scaffold {
         Box(
             modifier = modifier
@@ -135,7 +139,7 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
                 )
                 Spacer(modifier = Modifier.height(34.dp))
                 Button(
-                    onClick = { register(context, username,password,repeatPassword,coroutineScope) },
+                    onClick = { register(context, username,password,repeatPassword,selectedPort, coroutineScope) },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
@@ -144,6 +148,35 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
                         .padding(vertical = 8.dp)
                 ) {
                     Text("Create Profile", color = Color.White)
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp)
+            ) {
+                Button(onClick = { showPortDropdown = true }) {
+                    Text(text = "Port: $selectedPort")
+                }
+                DropdownMenu(
+                    expanded = showPortDropdown,
+                    onDismissRequest = { showPortDropdown = false }
+                ) {
+                    val ports = listOf("8081", "8082", "8083", "8084")
+                    ports.forEach { port ->
+                        DropdownMenuItem(
+                            text = { Text(port) },
+                            onClick = {
+                                selectedPort = port
+                                showPortDropdown = false
+                                // Reset session when port changes
+                                coroutineScope.launch {
+                                    SessionManager.clearSession(context)
+                                }
+                                Toast.makeText(context, "Session reset. Please log in again.", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -163,6 +196,7 @@ fun register(
     username: String,
     password: String,
     repeatPassword: String,
+    port: String,
     coroutineScope: CoroutineScope
 ) {
     if (username.isBlank() || password.isBlank() || repeatPassword.isBlank()) {
@@ -178,7 +212,7 @@ fun register(
     // Launch a coroutine to handle the asynchronous network request
     coroutineScope.launch(Dispatchers.IO) {
         // The network request is made here, on a background thread.
-        val result = NetworkClient.createAndRegisterProfile(username, password)
+        val result = NetworkClient.createAndRegisterProfile(username, password, port)
 
         // Switch back to the main thread to update UI or navigate
         withContext(Dispatchers.Main) {
@@ -186,7 +220,7 @@ fun register(
                 onSuccess = { (id, whitelist) ->
                     Toast.makeText(context, "Profile created successfully!", Toast.LENGTH_SHORT).show()
 
-                    SessionManager.saveSession(context, id, username)
+                    SessionManager.saveSession(context, id, username, port)
 
                     SessionManager.saveWhitelist(context, whitelist)
 

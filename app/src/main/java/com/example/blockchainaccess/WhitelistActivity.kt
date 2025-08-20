@@ -58,6 +58,7 @@ fun WhitelistScreen(modifier: Modifier = Modifier) {
     // Collect the whitelist Flow as state. The UI will automatically
     // recompose whenever the whitelist changes.
     val whitelist by SessionManager.getWhitelist(context).collectAsState(initial = emptySet())
+    val port by SessionManager.getPort(context).collectAsState(initial = "")
 
     // State for the text field
     var newId by remember { mutableStateOf("") }
@@ -84,7 +85,7 @@ fun WhitelistScreen(modifier: Modifier = Modifier) {
                     Button(onClick = {
                         if (newId.isNotBlank()) {
                             scope.launch {
-                                SessionManager.addToWhitelist(context, newId)
+                                SessionManager.addToWhitelist(context, newId, port)
                                 newId = "" // Clear the text field
                             }
                         }
@@ -105,7 +106,7 @@ fun WhitelistScreen(modifier: Modifier = Modifier) {
                                 id = id,
                                 onRemove = {
                                     scope.launch {
-                                        SessionManager.removeFromWhitelist(context, id)
+                                        SessionManager.removeFromWhitelist(context, id, port)
                                     }
                                 }
                             )

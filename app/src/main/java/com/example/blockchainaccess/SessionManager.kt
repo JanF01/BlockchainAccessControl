@@ -18,12 +18,14 @@ object SessionManager {
     private val USER_ID = stringPreferencesKey("user_id")
     private val USERNAME = stringPreferencesKey("username")
 
+    private val PORT = stringPreferencesKey("port")
     private val WHITELIST = stringSetPreferencesKey("whitelist")
 
-    suspend fun saveSession(context: Context, userId: String, username: String) {
+    suspend fun saveSession(context: Context, userId: String, username: String, port: String) {
         context.dataStore.edit { prefs ->
             prefs[IS_LOGGED_IN] = true
             prefs[USER_ID] = userId
+            prefs[PORT] = port
             prefs[USERNAME] = username
         }
     }
@@ -42,13 +44,14 @@ object SessionManager {
         return context.dataStore.data.map { it[USER_ID] }.first()
     }
 
+
     suspend fun getUsername(context: Context): String? {
         return context.dataStore.data.map { it[USERNAME] }.first()
     }
 
-    suspend fun addToWhitelist(context: Context, userId: String) {
+    suspend fun addToWhitelist(context: Context, userId: String, port: String) {
 
-        val result = NetworkClient.addWhitelistEntry(userId)
+        val result = NetworkClient.addWhitelistEntry(userId, port)
 
         result.fold(
             onSuccess = {
@@ -63,9 +66,9 @@ object SessionManager {
         )
     }
 
-    suspend fun removeFromWhitelist(context: Context, userId: String) {
+    suspend fun removeFromWhitelist(context: Context, userId: String, port: String) {
 
-        val result = NetworkClient.removeWhitelistEntry(userId)
+        val result = NetworkClient.removeWhitelistEntry(userId, port)
 
         result.fold(
             onSuccess = {
@@ -86,7 +89,11 @@ object SessionManager {
         }
     }
 
-
+    fun getPort(context: Context): Flow<String> {
+        return context.dataStore.data.map { prefs ->
+            prefs[PORT] ?: ""
+        }
+    }
     fun getWhitelist(context: Context): Flow<Set<String>> {
         return context.dataStore.data.map { prefs ->
             prefs[WHITELIST] ?: emptySet()
