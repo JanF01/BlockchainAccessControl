@@ -30,6 +30,9 @@
         <activity
             android:name=".WhitelistActivity"
             android:label="Authority Whitelist" />
+        <activity
+            android:name=".LogsActivity"
+            android:label="Logs" />
         <service
             android:name=".MyHostApduService"
             android:exported="true"

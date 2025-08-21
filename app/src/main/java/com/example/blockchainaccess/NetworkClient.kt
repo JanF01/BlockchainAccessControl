@@ -82,35 +82,38 @@ object NetworkClient {
 
     suspend fun createAndRegisterProfile(username: String, password: String, port: String): Result<Pair<String, Set<String>>> {
         try {
-            val createProfileUrl = "http://10.0.2.2:$port/login"
-            val response: HttpResponse = client.post(createProfileUrl) {
-                contentType(ContentType.Application.Json)
-                setBody(CreateProfileRequest(username, password))
-            }
+//            val createProfileUrl = "http://10.0.2.2:$port/login"
+//            val response: HttpResponse = client.post(createProfileUrl) {
+//                contentType(ContentType.Application.Json)
+//                setBody(CreateProfileRequest(username, password))
+//            }
+//
+//            if (response.status != HttpStatusCode.OK) {
+//                return Result.failure(Exception("Profile creation failed with status: ${response.status}"))
+//            }
+//
+//            val creationResponse = response.body<CreateProfileResponse>()
+//
+//            if (creationResponse.id == "wrong") {
+//                return Result.failure(Exception("Server returned an error"))
+//            }
 
-            if (response.status != HttpStatusCode.OK) {
-                return Result.failure(Exception("Profile creation failed with status: ${response.status}"))
-            }
+//            val generatedId = creationResponse.id
+//            val whitelist = creationResponse.whitelist
 
-            val creationResponse = response.body<CreateProfileResponse>()
-
-            if (creationResponse.id == "wrong") {
-                return Result.failure(Exception("Server returned an error"))
-            }
-
-            val generatedId = creationResponse.id
-            val whitelist = creationResponse.whitelist
+            val generatedId = "UE"
+            val whitelist: Set<String> = emptySet()
             println("Profile created. ID: $generatedId")
             // --- Step 2: Register user ID with 127.0.0.1:8081 ---
-            val registerUrl = "http://10.0.2.2:$port/app_save_id"
-            val registerResponse: HttpResponse = client.post(registerUrl) {
-                contentType(ContentType.Application.Json)
-                setBody(UpdateUserRequest(generatedId))
-            }
-
-            if (registerResponse.status != HttpStatusCode.OK) {
-                return Result.failure(Exception("User ID registration failed with status: ${registerResponse.status}"))
-            }
+//            val registerUrl = "http://10.0.2.2:$port/app_save_id"
+//            val registerResponse: HttpResponse = client.post(registerUrl) {
+//                contentType(ContentType.Application.Json)
+//                setBody(UpdateUserRequest(generatedId))
+//            }
+//
+//            if (registerResponse.status != HttpStatusCode.OK) {
+//                return Result.failure(Exception("User ID registration failed with status: ${registerResponse.status}"))
+//            }
 
             println("User ID $generatedId registered successfully.")
             return Result.success(Pair(generatedId, whitelist))

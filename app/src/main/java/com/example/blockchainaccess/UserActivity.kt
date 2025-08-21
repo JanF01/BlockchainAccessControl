@@ -208,7 +208,12 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                                     )
                                 ),
                                 shape = RoundedCornerShape(12.dp)
-                            ),
+                            )
+                            .clickable {
+                                context.startActivity(
+                                    Intent(context, LogsActivity::class.java)
+                                )
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
