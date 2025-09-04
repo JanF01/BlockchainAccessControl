@@ -38,14 +38,14 @@ import com.example.blockchainaccess.ui.theme.BlockchainAccessTheme
 import kotlinx.coroutines.*
 import android.widget.Toast
 
-class CreateProfileActivity : ComponentActivity() {
+class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             BlockchainAccessTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    CreateProfileScreen(
+                    LoginScreen(
                         name = "Android",
                         modifier = Modifier.padding(innerPadding)
                     )
@@ -57,12 +57,11 @@ class CreateProfileActivity : ComponentActivity() {
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
+fun LoginScreen(name: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var repeatPassword by remember { mutableStateOf("") }
     var selectedPort by remember { mutableStateOf("8081") }
     var showPortDropdown by remember { mutableStateOf(false) }
     Scaffold {
@@ -81,7 +80,7 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f)) // Adjust alpha to control darkness
+                    .background(Color.Black.copy(alpha = 0.6f))
             )
             Column(
                 modifier = Modifier
@@ -94,22 +93,22 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.Start // Align text to the left
                 ) {
-                Text(
-                    text = "Welcome!",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Left,
-                    modifier = Modifier.padding(28.dp, 0.dp, 0.dp, 0.dp)
-                )
-                Text(
-                    text = "Create your profile, provided you are authorized by the system administrator.",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Left,
-                    modifier = Modifier.padding(28.dp, 8.dp, 10.dp, 50.dp)
-                )
-                    }
+                    Text(
+                        text = "Welcome!",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Left,
+                        modifier = Modifier.padding(28.dp, 0.dp, 0.dp, 0.dp)
+                    )
+                    Text(
+                        text = "Sign in to your profile profile, provided you are authorized by the system administrator.",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Left,
+                        modifier = Modifier.padding(28.dp, 8.dp, 10.dp, 50.dp)
+                    )
+                }
                 TextField(
                     value = username,
                     onValueChange = { username = it },
@@ -128,18 +127,9 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
                         .fillMaxWidth(0.88f)
                         .padding(vertical = 6.dp)
                 )
-                TextField(
-                    value = repeatPassword,
-                    onValueChange = { repeatPassword = it },
-                    label = { Text("Repeat Password") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier
-                        .fillMaxWidth(0.88f)
-                        .padding(vertical = 6.dp)
-                )
                 Spacer(modifier = Modifier.height(34.dp))
                 Button(
-                    onClick = { register(context, username,password,repeatPassword,selectedPort, coroutineScope) },
+                    onClick = {  login(context, username,password,selectedPort, coroutineScope) },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
@@ -147,20 +137,7 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
                         .fillMaxWidth(0.5f)
                         .padding(vertical = 8.dp)
                 ) {
-                    Text("Create Profile", color = Color.White)
-                }
-                Button(
-                    onClick = {  context.startActivity(
-                        Intent(context, LoginActivity::class.java)
-                    ) },
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
-                    modifier = Modifier
-                        .fillMaxWidth(0.5f)
-                        .padding(vertical = 8.dp)
-                ) {
-                    Text("Already have an account.", color = Color.White)
+                    Text("Sign in", color = Color.White)
                 }
             }
             Box(
@@ -198,40 +175,34 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
 
 @Preview
 @Composable
-fun PreviewCreateProfileScreen() {
+fun PreviewLoginScreen() {
     BlockchainAccessTheme {
-        CreateProfileScreen("Android")
+        LoginScreen("Android")
     }
 }
 
-fun register(
+fun login(
     context: Context,
     username: String,
     password: String,
-    repeatPassword: String,
     port: String,
     coroutineScope: CoroutineScope
 ) {
-    if (username.isBlank() || password.isBlank() || repeatPassword.isBlank()) {
+    if (username.isBlank() || password.isBlank()) {
         Toast.makeText(context, "All fields must be filled.", Toast.LENGTH_SHORT).show()
         return
     }
 
-    if (password != repeatPassword) {
-        Toast.makeText(context, "Passwords do not match.", Toast.LENGTH_SHORT).show()
-        return
-    }
 
-    // Launch a coroutine to handle the asynchronous network request
     coroutineScope.launch(Dispatchers.IO) {
-        // The network request is made here, on a background thread.
-        val result = NetworkClient.createAndRegisterProfile(username, password, port)
 
-        // Switch back to the main thread to update UI or navigate
+        val result = NetworkClient.loginToProfile(username, password, port)
+
+
         withContext(Dispatchers.Main) {
             result.fold(
                 onSuccess = { (id, whitelist) ->
-                    Toast.makeText(context, "Profile created successfully!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Logged in successfully!", Toast.LENGTH_SHORT).show()
 
                     SessionManager.saveSession(context, id, username, port)
 

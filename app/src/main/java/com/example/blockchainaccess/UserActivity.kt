@@ -33,11 +33,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.lifecycleScope
 import android.content.Context
+import android.widget.Toast
 import kotlinx.coroutines.launch
 import com.example.blockchainaccess.ui.theme.BlockchainAccessTheme
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.foundation.clickable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 class UserActivity : ComponentActivity() {
@@ -76,6 +79,8 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
     var username by remember { mutableStateOf("Loading...") }
     var clicked by remember { mutableStateOf(false) }
     // For now, we don’t store username — so it’s a placeholder
+
+    val port by SessionManager.getPort(context).collectAsState(initial = "Loading...")
 
     LaunchedEffect(Unit) {
         val id = SessionManager.getUserId(context)
@@ -236,9 +241,27 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable {
-                                context.startActivity(
-                                    Intent(context, WhitelistActivity::class.java)
-                                )
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    // The network request is made here, on a background thread.
+                                    val result = NetworkClient.requestForWhitelist(userId,port)
+
+                                    // Switch back to the main thread to update UI or navigate
+                                    withContext(Dispatchers.Main) {
+                                        result.fold(
+                                            onSuccess = { whitelist ->
+                                                Toast.makeText(context, "Whitelist retrieved!", Toast.LENGTH_SHORT).show()
+
+                                                SessionManager.saveWhitelist(context, whitelist)
+
+                                                val intent = Intent(context, WhitelistActivity::class.java)
+                                                context.startActivity(intent)
+                                            },
+                                            onFailure = { error ->
+                                                Toast.makeText(context, error.message ?: "Unknown error", Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    }
+                                }
                             },
                         contentAlignment = Alignment.Center
                     ) {

@@ -94,7 +94,7 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
             )
                 }
             Button(
-                onClick = { /* Handle sign in */ },
+                onClick = { context.startActivity(Intent(context, LoginActivity::class.java)) },
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
