@@ -160,7 +160,7 @@ fun CreateProfileScreen(name: String, modifier: Modifier = Modifier) {
                         .fillMaxWidth(0.5f)
                         .padding(vertical = 8.dp)
                 ) {
-                    Text("Already have an account.", color = Color.White)
+                    Text("Already have a profile", color = Color.White)
                 }
             }
             Box(
