@@ -11,6 +11,13 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import io.ktor.serialization.kotlinx.json.*
+import kotlinx.serialization.*
+
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
+import android.util.Log
+
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
 object SessionManager {
 
@@ -20,6 +27,8 @@ object SessionManager {
 
     private val PORT = stringPreferencesKey("port")
     private val WHITELIST = stringSetPreferencesKey("whitelist")
+
+    val LOGS = stringPreferencesKey("logs")
 
     suspend fun saveSession(context: Context, userId: String, username: String, port: String) {
         context.dataStore.edit { prefs ->
@@ -86,6 +95,38 @@ object SessionManager {
     suspend fun saveWhitelist(context: Context, whitelist: Set<String>) {
         context.dataStore.edit { prefs ->
             prefs[WHITELIST] = whitelist
+        }
+    }
+
+    suspend fun saveLogBlocks(context: Context, blocks: List<NetworkClient.ChainBlock>) {
+        try {
+            context.dataStore.edit { prefs ->
+                prefs.remove(LOGS)
+                val updatedJson = NetworkClient.json.encodeToString(
+                    ListSerializer(PolymorphicSerializer(NetworkClient.ChainBlock::class)),
+                    blocks
+                )
+                prefs[LOGS] = updatedJson
+            }
+            Log.d("CHAIN", "Saved ${blocks.size} blocks")
+        } catch (e: Exception) {
+            Log.e("CHAIN", "Failed to save blocks", e)
+        }
+    }
+
+    fun logsFlow(context: Context): Flow<List<NetworkClient.ChainBlock>> {
+        return context.dataStore.data.map { prefs ->
+            prefs[LOGS]?.let {
+                try {
+                    NetworkClient.json.decodeFromString(
+                        ListSerializer(PolymorphicSerializer(NetworkClient.ChainBlock::class)),
+                        it
+                    )
+                } catch (e: Exception) {
+                    Log.e("CHAIN", "Failed to decode saved blocks", e)
+                    emptyList()
+                }
+            } ?: emptyList()
         }
     }
 

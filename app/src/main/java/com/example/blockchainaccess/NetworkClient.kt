@@ -1,5 +1,6 @@
 package com.example.blockchainaccess
 
+import android.content.Context
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.* // Use CIO for a lightweight client
@@ -8,9 +9,12 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
+import kotlinx.serialization.modules.*
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
-
+import io.ktor.utils.io.*
+import android.util.Log
 
 object NetworkClient {
 
@@ -21,6 +25,89 @@ object NetworkClient {
             })
         }
     }
+
+    @Serializable
+    sealed class ChainBlock {
+        abstract val block_height: Int
+        abstract val timestamp: String
+        abstract val previous_block_hash: String?
+        abstract val block_hash: String?
+    }
+
+    @Serializable
+    @SerialName("add_user_event")
+    data class AddUserEvent(
+        override val block_height: Int,
+        val room: String,
+        override val timestamp: String,
+        override val previous_block_hash: String,
+        val votes: List<Vote>,
+        val new_user_id: String,
+        val voting_summary: VotingSummary,
+        val added_to_chain: Boolean,
+        val aggregator_signature: String,
+        override val block_hash: String
+    ) : ChainBlock()
+
+    @Serializable
+    @SerialName("remove_user_event")
+    data class RemoveUserEvent(
+        override val block_height: Int,
+        val room: String,
+        override val timestamp: String,
+        override val previous_block_hash: String,
+        val votes: List<Vote>,
+        val removed_user_id: String,
+        val voting_summary: VotingSummary,
+        val added_to_chain: Boolean,
+        val aggregator_signature: String,
+        override val block_hash: String
+    ) : ChainBlock()
+
+    @Serializable
+    @SerialName("access_event")
+    data class AccessEvent(
+        override val block_height: Int,
+        val room: String,
+        override val timestamp: String,
+        override val previous_block_hash: String,
+        val votes: List<Vote>,
+        val user_id: String,
+        val voting_summary: VotingSummary,
+        val added_to_chain: Boolean,
+        val aggregator_signature: String,
+        override val block_hash: String
+    ) : ChainBlock()
+
+
+    @Serializable
+    @SerialName("add_pubkey_event")
+    data class AddPubKeyEvent(
+        override val block_height: Int,
+        val user_id: String,
+        val public_key: String,
+        override val timestamp: String,
+        override val previous_block_hash: String,
+        val aggregator_signature: String,
+        override val block_hash: String
+    ) : ChainBlock()
+
+    @Serializable
+    data class Vote(
+        val node_id: String? = null,
+        val room: String? = null,
+        val candidate: String? = null,
+        val voter_id: String? = null,
+        val vote: String,
+        val signature: String
+    )
+
+    @Serializable
+    data class VotingSummary(
+        val total_nodes: Int,
+        val yes_votes: Int,
+        val no_votes: Int
+    )
 
     @Serializable
     private data class CreateProfileRequest(
@@ -48,6 +135,51 @@ object NetworkClient {
     private data class WhitelistResponse(
         val whitelist: Set<String>
     )
+
+    val module = SerializersModule {
+        polymorphic(ChainBlock::class) {
+            subclass(AddUserEvent::class)
+            subclass(RemoveUserEvent::class)
+            subclass(AccessEvent::class)
+            subclass(AddPubKeyEvent::class)
+        }
+    }
+
+    val json = Json {
+        serializersModule = module
+        ignoreUnknownKeys = true
+        classDiscriminator = "type"
+    }
+
+    suspend fun getChain(userId: String, port: String, context: Context): Result<Unit> {
+        return try {
+            val url = "http://192.168.0.100:$port/get_chain"
+            val response: HttpResponse = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(WhitelistRequest(userId))
+            }
+
+            if (response.status != HttpStatusCode.OK) {
+                return Result.failure(Exception("Fetching chain failed with status: ${response.status}"))
+            }
+
+            val responseText = response.bodyAsText()
+
+
+            val blocks: List<ChainBlock> =
+                json.decodeFromString(ListSerializer(PolymorphicSerializer(ChainBlock::class)), responseText)
+
+            Log.d("CHAIN", "Decoded ${blocks.size} blocks") // should show 14
+
+            SessionManager.saveLogBlocks(context, blocks)
+
+            Log.d("CHAIN", "Decoded ${blocks.size} blocks")
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error while fetching chain: ${e.message}"))
+        }
+    }
 
     suspend fun requestForWhitelist(userId: String, port: String): Result<Set<String>> {
         return try {
