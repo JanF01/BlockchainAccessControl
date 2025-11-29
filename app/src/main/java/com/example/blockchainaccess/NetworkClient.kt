@@ -117,7 +117,7 @@ object NetworkClient {
 
     @Serializable
     private data class CreateProfileResponse(
-        val id: String,
+        val blockchain_node_id: String,
         val whitelist: Set<String>
     )
 
@@ -153,7 +153,7 @@ object NetworkClient {
 
     suspend fun getChain(userId: String, port: String, context: Context): Result<Unit> {
         return try {
-            val url = "http://192.168.0.100:$port/get_chain"
+            val url = "http://192.168.0.178:$port/get_chain"
             val response: HttpResponse = client.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(WhitelistRequest(userId))
@@ -183,7 +183,7 @@ object NetworkClient {
 
     suspend fun requestForWhitelist(userId: String, port: String): Result<Set<String>> {
         return try {
-            val url = "http://192.168.0.100:$port/request_whitelist"
+            val url = "http://192.168.0.178:$port/request_whitelist"
             val response: HttpResponse = client.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(WhitelistRequest(userId))
@@ -206,7 +206,7 @@ object NetworkClient {
 
     suspend fun addWhitelistEntry(userId: String, port: String): Result<Unit> {
         return try {
-            val url = "http://192.168.0.100:$port/new_whitelist_entry"
+            val url = "http://192.168.0.178:$port/new_whitelist_entry"
             val response = client.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(WhitelistRequest(userId))
@@ -224,7 +224,7 @@ object NetworkClient {
 
     suspend fun removeWhitelistEntry(userId: String, port: String): Result<Unit> {
         return try {
-            val url = "http://192.168.0.100:$port/remove_whitelist_entry"
+            val url = "http://192.168.0.178:$port/remove_whitelist_entry"
             val response = client.post(url) {
                 contentType(ContentType.Application.Json)
                 setBody(WhitelistRequest(userId))
@@ -246,7 +246,7 @@ object NetworkClient {
         port: String
     ): Result<Pair<String, Set<String>>> {
         try {
-            val loginUrl = "http://192.168.0.100:$port/login"
+            val loginUrl = "http://192.168.0.178:$port/login"
             val response: HttpResponse = client.post(loginUrl) {
                 contentType(ContentType.Application.Json)
                 setBody(CreateProfileRequest(username, password))
@@ -259,7 +259,7 @@ object NetworkClient {
             }
 
             val creationResponse = response.body<CreateProfileResponse>()
-            val id = creationResponse.id
+            val id = creationResponse.blockchain_node_id
             val whitelist = creationResponse.whitelist
 
             if (id.isBlank()) {
@@ -280,7 +280,7 @@ object NetworkClient {
 
     suspend fun createAndRegisterProfile(username: String, password: String, port: String): Result<Pair<String, Set<String>>> {
         try {
-            val createProfileUrl = "http://192.168.0.100:$port/register"
+            val createProfileUrl = "http://192.168.0.178:$port/register"
             val response: HttpResponse = client.post(createProfileUrl) {
                 contentType(ContentType.Application.Json)
                 setBody(CreateProfileRequest(username, password))
@@ -291,7 +291,7 @@ object NetworkClient {
             }
 
             val creationResponse = response.body<CreateProfileResponse>()
-            val generatedId = creationResponse.id
+            val generatedId = creationResponse.blockchain_node_id
             val whitelist = creationResponse.whitelist
 
             if (generatedId.isBlank()) {
@@ -303,7 +303,7 @@ object NetworkClient {
             }
             println("Profile created. ID: $generatedId")
 
-            val registerUrl = "http://192.168.0.100:$port/app_save_id"
+            val registerUrl = "http://192.168.0.178:$port/app_save_id"
             val registerResponse: HttpResponse = client.post(registerUrl) {
                 contentType(ContentType.Application.Json)
                 setBody(UpdateUserRequest(generatedId))

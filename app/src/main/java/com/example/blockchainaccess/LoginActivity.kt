@@ -62,7 +62,7 @@ fun LoginScreen(name: String, modifier: Modifier = Modifier) {
     val coroutineScope = rememberCoroutineScope()
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var selectedPort by remember { mutableStateOf("8081") }
+    var selectedPort by remember { mutableStateOf("8001") }
     var showPortDropdown by remember { mutableStateOf(false) }
     Scaffold {
         Box(
@@ -152,7 +152,7 @@ fun LoginScreen(name: String, modifier: Modifier = Modifier) {
                     expanded = showPortDropdown,
                     onDismissRequest = { showPortDropdown = false }
                 ) {
-                    val ports = listOf("8081", "8082", "8083", "8084")
+                    val ports = listOf("8001", "8002", "8003", "8004")
                     ports.forEach { port ->
                         DropdownMenuItem(
                             text = { Text(port) },
