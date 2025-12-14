@@ -103,7 +103,7 @@ fun LoginScreen(name: String, modifier: Modifier = Modifier) {
                         modifier = Modifier.padding(28.dp, 0.dp, 0.dp, 0.dp)
                     )
                     Text(
-                        text = "Sign in to your profile profile, provided you are authorized by the system administrator.",
+                        text = "Sign in to your profile, provided you are authorized by the system administrator.",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 14.sp,
                         textAlign = TextAlign.Left,
