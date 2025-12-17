@@ -360,7 +360,7 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Access Failed",
+                            text = "Access Denied",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
