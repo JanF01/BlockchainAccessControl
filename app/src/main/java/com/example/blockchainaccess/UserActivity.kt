@@ -40,8 +40,19 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.foundation.clickable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Locale
 
+// Sealed class to manage the UI state of the access check
+sealed class AccessCheckState {
+    object Idle : AccessCheckState()
+    object Checking : AccessCheckState()
+    data class Granted(val room: String, val timestamp: String) : AccessCheckState()
+    object Denied : AccessCheckState()
+}
 
 class UserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,7 +89,9 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
     var userId by remember { mutableStateOf("Loading...") }
     var username by remember { mutableStateOf("Loading...") }
     var clicked by remember { mutableStateOf(false) }
-    // For now, we don’t store username — so it’s a placeholder
+
+    // State to track the access result
+    var accessState by remember { mutableStateOf<AccessCheckState>(AccessCheckState.Idle) }
 
     val port by SessionManager.getPort(context).collectAsState(initial = "Loading...")
 
@@ -89,8 +102,8 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
         val name = SessionManager.getUsername(context)
         username = name ?: "Unknown User"
     }
+
     val gradient = if (clicked) {
-        // Brighter gradient when clicked
         Brush.horizontalGradient(
             colors = listOf(
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
@@ -98,7 +111,6 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
             )
         )
     } else {
-        // Default shaded blue gradient
         Brush.horizontalGradient(
             colors = listOf(
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
@@ -108,9 +120,9 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
     }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
+        // Background Image
         Image(
             painter = painterResource(id = R.drawable.wavy),
             contentDescription = null,
@@ -119,18 +131,21 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                 .fillMaxSize()
                 .graphicsLayer(alpha = 0.5f)
         )
+        // Dark Overlay
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f)) // Adjust alpha to control darkness
+                .background(Color.Black.copy(alpha = 0.6f))
         )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp)
         ) {
-
             Spacer(modifier = Modifier.height(10.dp))
+
+            // User Info Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -163,24 +178,53 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Main Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-
+                // NFC Button
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(160.dp)
-                        .clip(RoundedCornerShape(12.dp)) // clip the shape so background doesn't overflow
+                        .clip(RoundedCornerShape(12.dp))
                         .background(gradient)
                         .clickable {
                             clicked = !clicked
+                            accessState = AccessCheckState.Checking
+
+                            // 1. Start NFC Service
                             saveUserIdForNfc(context, userId)
                             val intent = Intent(context, MyHostApduService::class.java).apply {
                                 putExtra("NFC_USER_ID", userId)
                             }
                             context.startService(intent)
+
+                            // 2. Launch Coroutine logic locally
+                            coroutineScope.launch(Dispatchers.IO) {
+                                // Attempt 1: Wait 4 seconds
+                                delay(4000)
+                                var result = performChainCheck(context, userId, port)
+
+                                if (result is AccessCheckState.Granted) {
+                                    withContext(Dispatchers.Main) { accessState = result }
+                                    return@launch
+                                }
+
+                                // Attempt 2: Wait 2 more seconds (Total 6s)
+                                delay(2000)
+                                result = performChainCheck(context, userId, port)
+
+                                withContext(Dispatchers.Main) {
+                                    accessState = if (result is AccessCheckState.Granted) {
+                                        result
+                                    } else {
+                                        AccessCheckState.Denied
+                                    }
+                                }
+                            }
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -194,7 +238,7 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                     )
                 }
 
-
+                // Logs and Authority List Column
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -242,17 +286,12 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                             )
                             .clickable {
                                 coroutineScope.launch(Dispatchers.IO) {
-                                    // The network request is made here, on a background thread.
-                                    val result = NetworkClient.requestForWhitelist(userId,port)
-
-                                    // Switch back to the main thread to update UI or navigate
+                                    val result = NetworkClient.requestForWhitelist(userId, port)
                                     withContext(Dispatchers.Main) {
                                         result.fold(
                                             onSuccess = { whitelist ->
                                                 Toast.makeText(context, "Whitelist retrieved!", Toast.LENGTH_SHORT).show()
-
                                                 SessionManager.saveWhitelist(context, whitelist)
-
                                                 val intent = Intent(context, WhitelistActivity::class.java)
                                                 context.startActivity(intent)
                                             },
@@ -273,7 +312,71 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Dynamic Access Status Block
+            when (val state = accessState) {
+                is AccessCheckState.Granted -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0xFF4CAF50).copy(alpha = 0.8f), // Green
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(16.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = "Access Granted",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Room: ${state.room}",
+                                fontSize = 16.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Time: ${state.timestamp}",
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
+                }
+                is AccessCheckState.Denied -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0xFFE53935).copy(alpha = 0.8f), // Red
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Access Failed",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+                is AccessCheckState.Checking -> {
+                    // Optional loading state text if desired
+                }
+                is AccessCheckState.Idle -> {
+                    // No display
+                }
+            }
         }
+
+        // Logout Button
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -289,6 +392,49 @@ fun UserScreen(name: String, modifier: Modifier = Modifier) {
                 Text(text = "Logout")
             }
         }
+    }
+}
+
+/**
+ * Standalone suspend function to check the chain.
+ * Returns Granted or Denied/Idle based on the check.
+ */
+private suspend fun performChainCheck(
+    context: Context,
+    userId: String,
+    port: String
+): AccessCheckState {
+    try {
+        // 1. Request Chain Update
+        NetworkClient.getChain(userId, port, context)
+
+        // 2. Read the latest chain from SessionManager
+        val chain = SessionManager.logsFlow(context).first()
+
+        if (chain.isNotEmpty()) {
+            val lastBlock = chain.last()
+
+            // 3. Check if last block is AccessEvent AND belongs to current user
+            if (lastBlock is NetworkClient.AccessEvent && lastBlock.user_id == userId) {
+                val formattedTime = try {
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                    val outputFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                    val date = inputFormat.parse(lastBlock.timestamp)
+                    outputFormat?.format(date) ?: lastBlock.timestamp
+                } catch (e: Exception) {
+                    lastBlock.timestamp
+                }
+
+                return AccessCheckState.Granted(
+                    room = lastBlock.room,
+                    timestamp = formattedTime
+                )
+            }
+        }
+        return AccessCheckState.Idle // Not found yet
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return AccessCheckState.Idle // Error is treated as not found
     }
 }
 
